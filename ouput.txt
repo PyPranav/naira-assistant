@@ -1,0 +1,22 @@
+
+{
+  "calculator": {
+    "app.py": {},
+    "templates": {
+      "index.html": {},
+      "result.html": {}
+    },
+    "static": {
+      "style.css": {}
+    },
+    "templates/layout": {
+      "base.html": {}
+    },
+    "models": {
+      "calculator.py": {}
+    },
+    "tests": {
+      "test_calculator.py": {}
+    }
+  }
+}

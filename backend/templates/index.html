@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.5/socket.io.js"
+        integrity="sha512-luMnTJZ7oEchNDZAtQhgjomP1eZefnl82ruTH/3Oj/Yu5qYtwL7+dVRccACS/Snp1lFXq188XFipHKYE75IaQQ=="
+        crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"
+        integrity="sha512-v2CJ7UaYy4JwqLDIrZUI/4hqeoQieOmAZNXBeQyjo21dadnwR+8ZaIJVT8EE2iyI61OV8e6M8PP2/4hpQINQ/g=="
+        crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+
+
+
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.14.305/pdf.min.js"></script>
+
+
+
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/2.1.3/marked.min.js"></script>
+
+    <script src="https://cdn.jsdelivr.net/npm/tailwind-typography@0.1.0/src/index.min.js"></script>
+
+    <link rel="stylesheet" href="https://unpkg.com/tailwindcss@1.4.6/dist/base.min.css">
+    <link rel="stylesheet" href="https://unpkg.com/tailwindcss@1.4.6/dist/components.min.css">
+    <link rel="stylesheet" href="https://unpkg.com/@tailwindcss/typography@0.1.2/dist/typography.min.css">
+    <link rel="stylesheet" href="https://unpkg.com/tailwindcss@1.4.6/dist/utilities.min.css">
+
+    <script>
+        tailwind.config = {
+            // darkMode:"selector",
+            theme: {
+                extend: {
+                    colors: {
+                        clifford: '#da373d',
+                    }
+                }
+            },
+        }
+    </script>
+</head>
+
+<body class="h-full">
+
+    <script>
+        let allContext = ''
+
+        const socket = io();
+        let chats = []
+
+        socket.on("connect", () => {
+            console.log("Connected!!!")
+        });
+
+        socket.on("addImage", (res)=>{
+
+            if (chats[chats.length - 1].content !=='...')
+                chats.push({ 'role': 'assistant', 'content': '' })
+            else
+                chats[chats.length - 1].content = ''
+
+            chats[chats.length - 1].content = `<image class="w-[400px] h-[300px] object-cover" src="${res}" alt='gen-img' />`
+            rerender()
+        })
+
+        socket.on("new", (res) => {
+            console.log({ res })
+            if (chats[chats.length - 1].content !=='...')
+                chats.push({ 'role': 'assistant', 'content': '' })
+            else
+                chats[chats.length - 1].content = ''
+
+            // let ind = chats.length - 1
+            let curI = 0
+            const interval = setInterval(()=>{
+                chats[chats.length - 1].content = res.slice(0,curI)
+                curI+=6 
+                rerender()
+
+                if (curI>res.length+10)
+                    clearInterval(interval)
+
+                // console.log(curI);
+                
+            }, 10)
+        })
+        socket.emit("message", 'work please')
+
+        const rerender = () => {
+            htmlStr = ''
+            
+
+
+            chats.forEach((chat) => {
+                if (chat.role==='assistant' && chat.content.startsWith('<image')){                    
+                    htmlStr += chat.content
+                }
+                else if (chat.role === 'user')
+                    htmlStr += `<div class="prose chat text-start invert w-full flex justify-end ml-auto my-4">
+                                    <p class='px-2 py-3 bg-[#c9c9c9] rounded-full'>
+                                        ${chat.content}
+                                    </p>
+                                </div>`
+                else
+                    htmlStr += `<div class="prose chat text-start invert">${marked(chat.content)}</div>`
+            })
+            $("#chats").html(htmlStr).scrollTop($("#chats").prop('scrollHeight'))
+
+        }
+
+
+        const sendQuerry = () => {
+            console.log('clicked!!', $("#userInput").val())
+            const query = $("#userInput").val()
+            chats.push({ 'role': 'user', 'content': query })
+
+            chats.push({ 'role': 'assistant', 'content': '...' })
+            rerender()
+            $("#userInput").val("")
+
+            if (allContext!==''){
+                console.log("RAG!!")
+                
+                socket.emit('rag', query, allContext, chats)
+                return
+            }
+        
+            
+
+            socket.emit('queryGroq', query, chats)
+        }
+
+        const keydown = (e) => {
+            if (event.key === 'Enter') {
+                sendQuerry()
+            }
+        }
+        const reset = ()=>{
+            chats = []
+            rerender()
+        }
+
+        const triggerFileUpload = ()=>{
+            console.log('trigger')
+            $("#fileInput").trigger("click")
+        }
+
+        const forgetFile = ()=>{
+            console.log("forget")
+            allContext=''
+            
+                
+            $("#ragButton").html('PDF')
+                $("#ragButton").off("click").click(triggerFileUpload)
+            
+        }
+        $("#userInput").on('keydown', keydown);
+
+    </script>
+    <div class="h-full bg-[#242424] grid place-items-center ">
+    <div class="h-full w-full bg-[#242424] overflow-hidden grid grid-rows-[1fr_50px] max-w-[1000px]">
+        <div id="chats" class="flex flex-col text-white p-5 overflow-y-scroll">
+
+
+                
+        </div>
+        <div class="grid grid-cols-[50px_1fr_50px_70px]">
+            <div>
+                <div onclick="reset()"
+                    class="cursor-pointer h-full w-full rounded-l-full bg-black bg-opacity-40 hover:bg-opacity-70 text-white text-xl grid place-items-center">🔄</div>
+            </div>
+            <input onkeydown="keydown()" id="userInput" autofocus
+                class="px-5 pr-12 border-none focus:outline-none h-full w-full bg-[#2f2f2f] text-white" />
+            <div>
+                <div onclick="sendQuerry()"
+                    class=" cursor-pointer h-full w-full rounded-r-full bg-black bg-opacity-40 hover:bg-opacity-70 text-white grid place-items-center">Go</div>
+            </div>
+            <div>
+                <div
+                id="ragButton"
+                    class=" cursor-pointer ml-3 h-full rounded-full bg-black bg-opacity-40 hover:bg-opacity-70 text-white grid place-items-center">
+                    PDF
+                </div>
+            </div>
+        </div>
+
+    </div>
+    </div>
+    <input id="fileInput" class="opacity-0 absolute top-0 z-[-1]" type="file" accept=".pdf" multiple/>
+
+
+
+    <script>
+
+function readPDF(file) {
+            return new Promise(function(resolve, reject) {
+                var reader = new FileReader();
+                reader.onload = function(event) {
+                    var typedArray = new Uint8Array(event.target.result);
+                    pdfjsLib.getDocument(typedArray).promise.then(function(pdf) {
+                        var pagesPromises = [];
+                        for (var i = 1; i <= pdf.numPages; i++) {
+                            pagesPromises.push(pdf.getPage(i).then(function(page) {
+                                return page.getTextContent().then(function(textContent) {
+                                    return textContent.items.map(item => item.str).join(' ');
+                                });
+                            }));
+                        }
+                        // Resolve the promise with the concatenated text of all pages
+                        Promise.all(pagesPromises).then(function(pagesText) {
+                            var fullText = pagesText.join('\n');
+                            resolve(fullText);
+                        }).catch(function(error) {
+                            reject(error);
+                        });
+                    }).catch(function(error) {
+                        reject(error);
+                    });
+                };
+                reader.onerror = function(error) {
+                    reject(error);
+                };
+                reader.readAsArrayBuffer(file);
+            });
+        }        
+        $("#ragButton").off("click").click(triggerFileUpload)
+
+        $('#fileInput').on('change', function(event) {
+            var files = event.target.files;
+            if (files.length > 0) {
+                console.log('Received files:');
+                allContext='';
+                $.each(files, async function(index, file) {
+                        console.log('Processing File: ' + file.name);
+                        allContext += await readPDF(file) 
+                });
+
+                $("#ragButton").html("X")
+                $("#ragButton").off("click").click(forgetFile)
+            } else {
+                
+                $("#ragButton").html('PDF')
+                $("#ragButton").off("click").click(triggerFileUpload)
+                console.log('No files selected.');
+            }
+        });
+    </script>
+</body>
+
+</html>
