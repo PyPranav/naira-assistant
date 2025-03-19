@@ -1,7 +1,6 @@
 from flask import Flask, render_template
 from flask_socketio import SocketIO
 from flask import Flask, redirect, request, url_for, jsonify, send_from_directory
-from flask_cors import CORS
 
 import io
 import os
@@ -46,7 +45,6 @@ NEXUS_URL = 'https://ollama.pypranav.com/api/generate'
 CONTEXT = []
 
 app = Flask(__name__)
-CORS(app)
 app.config['SECRET_KEY'] = 'secret!'
 socketio = SocketIO(app, cors_allowed_origins='*')
 

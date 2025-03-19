@@ -13,7 +13,6 @@ click==8.1.7
 colorama==0.4.6
 distro==1.9.0
 Flask==3.0.3
-Flask-Cors==5.0.0
 Flask-SocketIO==5.3.7
 frozendict==2.4.4
 frozenlist==1.4.1
