@@ -25,7 +25,7 @@ llm = ChatGoogleGenerativeAI(model='gemini-2.0-flash', api_key=SecretStr(os.gete
 # Create agent with the model
 async def main():
     agent = Agent(
-        task="",
+        task="find me headphones on amazon",
         llm=llm,
         browser=browser,
     )

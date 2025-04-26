@@ -310,7 +310,7 @@ def search_web_and_answer(query):
         for result in search(query,num_results=3, lang="en"):
             search_results.append(result)
 
-        print(f"Top 3 search results: {search_results}")
+        print("Top 3 search results:", search_results)
         # socketio.emit('new', f'''
         #           Top 3 search results: {search_results}
         #           ''')
@@ -320,21 +320,24 @@ def search_web_and_answer(query):
 
         # Scrape content from the top 3 links
         for url in search_results:
-            if 'wikipedia.org' in url:
-                print(f"Scraping Wikipedia page: {url}")
-                socketio.emit('new', f'''Scraping Wikipedia page: {url}''')
+            try:
+                if 'wikipedia.org' in url:
+                    print(f"Scraping Wikipedia page: {url}")
+                    socketio.emit('new', f'''Scraping Wikipedia page: {url}''')
 
-                content, token_count = scrape_url_content(url)
-                combined_content += content
-                total_tokens += token_count
-                break  # Prioritize Wikipedia link
-            else:
-                print(f"Scraping: {url}")
-                socketio.emit('new', f'''Scraping: {url}''')
+                    content, token_count = scrape_url_content(url)
+                    combined_content += content
+                    total_tokens += token_count
+                    break  # Prioritize Wikipedia link
+                else:
+                    print(f"Scraping: {url}")
+                    socketio.emit('new', f'''Scraping: {url}''')
 
-                content, token_count = scrape_url_content(url)
-                combined_content += content
-                total_tokens += token_count
+                    content, token_count = scrape_url_content(url)
+                    combined_content += content
+                    total_tokens += token_count
+            except Exception as e:
+                print(e)
 
         if not combined_content:
             return "No content found in search results."

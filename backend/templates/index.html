@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
+    <title>Naira - Your AI Assistant</title>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.5/socket.io.js"
         integrity="sha512-luMnTJZ7oEchNDZAtQhgjomP1eZefnl82ruTH/3Oj/Yu5qYtwL7+dVRccACS/Snp1lFXq188XFipHKYE75IaQQ=="
@@ -13,30 +13,31 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"
         integrity="sha512-v2CJ7UaYy4JwqLDIrZUI/4hqeoQieOmAZNXBeQyjo21dadnwR+8ZaIJVT8EE2iyI61OV8e6M8PP2/4hpQINQ/g=="
         crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-
-
-
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.14.305/pdf.min.js"></script>
-
-
-
-
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.14.305/pdf.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/2.1.3/marked.min.js"></script>
-
     <script src="https://cdn.jsdelivr.net/npm/tailwind-typography@0.1.0/src/index.min.js"></script>
 
     <link rel="stylesheet" href="https://unpkg.com/tailwindcss@1.4.6/dist/base.min.css">
     <link rel="stylesheet" href="https://unpkg.com/tailwindcss@1.4.6/dist/components.min.css">
     <link rel="stylesheet" href="https://unpkg.com/@tailwindcss/typography@0.1.2/dist/typography.min.css">
     <link rel="stylesheet" href="https://unpkg.com/tailwindcss@1.4.6/dist/utilities.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        .prose strong {
+            color: white !important;
+        }
+    </style>
 
     <script>
-        tailwind.config = {
-            // darkMode:"selector",
+                                            tailwind.config = {
             theme: {
                 extend: {
                     colors: {
-                        clifford: '#da373d',
+                        primary: '#7c3aed',
+                        secondary: '#9333ea',
+                        dark: '#242424',
+                        light: '#f3f4f6'
                     }
                 }
             },
@@ -47,23 +48,111 @@
 <body class="h-full">
 
     <script>
-        let allContext = ''
-
+                                            let allContext = ''
         const socket = io();
         let chats = []
+                                            let speechEnabled = true;
+                                            let currentUtterance = null;
+
+                                            // Initialize speech synthesis
+                                            const synth = window.speechSynthesis;
+
+                                            // Function to speak text
+                                            function speakText(text) {
+                                                if (!speechEnabled) return;
+
+                                                // Stop any current speech
+                                                if (currentUtterance) {
+                                                    synth.cancel();
+                                                }
+
+                                                // Clean markdown from text and remove URLs
+                                                const cleanText = text
+                                                    // Remove markdown formatting
+                                                    .replace(/\*\*/g, '')
+                                                    .replace(/\*/g, '')
+                                                    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+                                                    .replace(/#{1,6}\s?([^\n]+)/g, '$1')
+                                                    .replace(/`([^`]+)`/g, '$1')
+                                                    .replace(/```[^`]*```/g, 'code block')
+                                                    // Remove URLs - matches common URL patterns
+                                                    .replace(/https?:\/\/[^\s]+/g, 'URL')
+                                                    .replace(/www\.[^\s]+\.[a-z]{2,}/g, 'URL')
+                                                    // Remove email addresses
+                                                    .replace(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g, 'email address');
+
+                                                const utterance = new SpeechSynthesisUtterance(cleanText);
+
+                                                // Set voice properties
+                                                utterance.rate = 1.0;
+                                                utterance.pitch = 1.0;
+                                                utterance.volume = 1.0;
+
+                                                // Try to find a female voice
+                                                let voices = synth.getVoices();
+                                                let femaleVoice = voices.find(voice =>
+                                                    voice.name.toLowerCase().includes('female') ||
+                                                    voice.name.includes('Samantha') ||
+                                                    voice.name.includes('Victoria') ||
+                                                    voice.name.includes('Karen') ||
+                                                    voice.name.includes('Tessa')
+                                                );
+
+                                                if (femaleVoice) {
+                                                    utterance.voice = femaleVoice;
+                                                }
+
+                                                // Enable stop button when speech starts
+                                                document.getElementById('stopSpeechBtn').disabled = false;
+
+                                                // Disable stop button when speech ends
+                                                utterance.onend = function () {
+                                                    document.getElementById('stopSpeechBtn').disabled = true;
+                                                    currentUtterance = null;
+                                                };
+
+                                                currentUtterance = utterance;
+                                                synth.speak(utterance);
+                                            }
+
+                                            // Function to stop speech
+                                            function stopSpeech() {
+                                                if (currentUtterance) {
+                                                    synth.cancel();
+                                                    currentUtterance = null;
+                                                    document.getElementById('stopSpeechBtn').disabled = true;
+                                                }
+                                            }
+
+                                            // Toggle speech function
+                                            function toggleSpeech() {
+                                                speechEnabled = !speechEnabled;
+
+                                                if (!speechEnabled && currentUtterance) {
+                                                    stopSpeech();
+                                                }
+
+                                                const speechIcon = document.getElementById('speechIcon');
+                                                if (speechEnabled) {
+                                                    speechIcon.classList.remove('fa-volume-mute');
+                                                    speechIcon.classList.add('fa-volume-high');
+                                                } else {
+                                                    speechIcon.classList.remove('fa-volume-high');
+                                                    speechIcon.classList.add('fa-volume-mute');
+                                                }
+                                            }
 
         socket.on("connect", () => {
             console.log("Connected!!!")
         });
 
-        socket.on("addImage", (res)=>{
-
+                                            socket.on("addImage", (res) => {
             if (chats[chats.length - 1].content !=='...')
                 chats.push({ 'role': 'assistant', 'content': '' })
             else
                 chats[chats.length - 1].content = ''
 
-            chats[chats.length - 1].content = `<image class="w-[400px] h-[300px] object-cover" src="${res}" alt='gen-img' />`
+                                            chats[chats.length - 1].content = `<image class="w-[400px] h-[300px] object-cover rounded-lg shadow-md" src="${res}" alt='gen-img' />`
             rerender()
         })
 
@@ -74,62 +163,63 @@
             else
                 chats[chats.length - 1].content = ''
 
-            // let ind = chats.length - 1
             let curI = 0
+            let fullResponse = '';
             const interval = setInterval(()=>{
-                chats[chats.length - 1].content = res.slice(0,curI)
+                fullResponse = res.slice(0, curI);
+                chats[chats.length - 1].content = fullResponse;
                 curI+=6 
                 rerender()
 
-                if (curI>res.length+10)
-                    clearInterval(interval)
-
-                // console.log(curI);
-                
+                if (curI > res.length + 10) {
+                    clearInterval(interval);
+                    // Speak the full response when typing is done
+                    speakText(res);
+                }
             }, 10)
         })
+
         socket.emit("message", 'work please')
 
         const rerender = () => {
             htmlStr = ''
-            
-
 
             chats.forEach((chat) => {
                 if (chat.role==='assistant' && chat.content.startsWith('<image')){                    
-                    htmlStr += chat.content
+                    htmlStr += `<div class="my-4 flex">${chat.content}</div>`
                 }
                 else if (chat.role === 'user')
-                    htmlStr += `<div class="prose chat text-start invert w-full flex justify-end ml-auto my-4">
-                                    <p class='px-2 py-3 bg-[#c9c9c9] rounded-full'>
+                    htmlStr += `<div class="prose chat text-start w-full flex justify-end ml-auto my-4">
+                                    <p class='px-4 py-3 bg-primary bg-opacity-20 text-white rounded-2xl max-w-[70%] shadow-sm'>
                                         ${chat.content}
                                     </p>
                                 </div>`
                 else
-                    htmlStr += `<div class="prose chat text-start invert">${marked(chat.content)}</div>`
+                    htmlStr += `<div class="prose chat text-start my-4">
+                                    <div class='px-4 py-3 bg-secondary bg-opacity-10 text-white rounded-2xl max-w-[70%] shadow-sm'>
+                                        ${marked(chat.content)}
+                                    </div>
+                                </div>`
             })
             $("#chats").html(htmlStr).scrollTop($("#chats").prop('scrollHeight'))
-
         }
 
 
         const sendQuerry = () => {
             console.log('clicked!!', $("#userInput").val())
             const query = $("#userInput").val()
+            if (!query.trim()) return;
+            
             chats.push({ 'role': 'user', 'content': query })
-
             chats.push({ 'role': 'assistant', 'content': '...' })
             rerender()
             $("#userInput").val("")
 
             if (allContext!==''){
                 console.log("RAG!!")
-                
                 socket.emit('rag', query, allContext, chats)
                 return
             }
-        
-            
 
             socket.emit('queryGroq', query, chats)
         }
@@ -139,9 +229,13 @@
                 sendQuerry()
             }
         }
+
         const reset = ()=>{
             chats = []
             rerender()
+            if (currentUtterance) {
+                stopSpeech();
+            }
         }
 
         const triggerFileUpload = ()=>{
@@ -152,51 +246,64 @@
         const forgetFile = ()=>{
             console.log("forget")
             allContext=''
-            
-                
-            $("#ragButton").html('PDF')
-                $("#ragButton").off("click").click(triggerFileUpload)
-            
+            $("#ragButton").html('<i class="fas fa-file-pdf"></i>')
+            $("#ragButton").off("click").click(triggerFileUpload)
         }
+
         $("#userInput").on('keydown', keydown);
 
-    </script>
-    <div class="h-full bg-[#242424] grid place-items-center ">
-    <div class="h-full w-full bg-[#242424] overflow-hidden grid grid-rows-[1fr_50px] max-w-[1000px]">
-        <div id="chats" class="flex flex-col text-white p-5 overflow-y-scroll">
-
-
-                
-        </div>
-        <div class="grid grid-cols-[50px_1fr_50px_70px]">
-            <div>
-                <div onclick="reset()"
-                    class="cursor-pointer h-full w-full rounded-l-full bg-black bg-opacity-40 hover:bg-opacity-70 text-white text-xl grid place-items-center">🔄</div>
-            </div>
-            <input onkeydown="keydown()" id="userInput" autofocus
-                class="px-5 pr-12 border-none focus:outline-none h-full w-full bg-[#2f2f2f] text-white" />
-            <div>
-                <div onclick="sendQuerry()"
-                    class=" cursor-pointer h-full w-full rounded-r-full bg-black bg-opacity-40 hover:bg-opacity-70 text-white grid place-items-center">Go</div>
-            </div>
-            <div>
-                <div
-                id="ragButton"
-                    class=" cursor-pointer ml-3 h-full rounded-full bg-black bg-opacity-40 hover:bg-opacity-70 text-white grid place-items-center">
-                    PDF
+                                            // Ensure voices are loaded
+                                            window.speechSynthesis.onvoiceschanged = function () {
+                                                console.log("Voices loaded:", synth.getVoices().length);
+                                            };
+</script>
+    
+    <div class="h-full bg-dark grid place-items-center">
+        <div class="h-full w-full overflow-hidden grid grid-rows-[auto_1fr_60px] max-w-[1000px]">
+            <div class="bg-secondary bg-opacity-30 p-3 flex justify-between items-center">
+                <h1 class="text-white text-xl font-bold">Naira <span class="text-sm font-normal opacity-70">Your AI
+                        Assistant</span></h1>
+                <div class="flex gap-3">
+                    <button onclick="toggleSpeech()"
+                        class="w-10 h-10 rounded-full bg-primary bg-opacity-30 hover:bg-opacity-50 text-white grid place-items-center transition-all">
+                        <i id="speechIcon" class="fas fa-volume-high"></i>
+                    </button>
+                    <button id="stopSpeechBtn" onclick="stopSpeech()"
+                        class="w-10 h-10 rounded-full bg-primary bg-opacity-30 hover:bg-opacity-50 text-white grid place-items-center transition-all"
+                        disabled>
+                        <i class="fas fa-stop"></i>
+                    </button>
+                    <button onclick="reset()"
+                        class="w-10 h-10 rounded-full bg-primary bg-opacity-30 hover:bg-opacity-50 text-white grid place-items-center transition-all">
+                        <i class="fas fa-sync-alt"></i>
+                    </button>
                 </div>
             </div>
-        </div>
-
-    </div>
-    </div>
+            <div id="chats" class="flex flex-col text-white p-5 overflow-y-scroll">
+                <!-- Chat messages will appear here -->
+            </div>
+            <div class="grid grid-cols-[1fr_50px_70px] gap-2 p-2">
+                <input onkeydown="keydown()" id="userInput" autofocus placeholder="Ask Naira anything..."
+                    class="px-5 pr-12 border-none focus:outline-none h-full w-full bg-[#2f2f2f] text-white rounded-full shadow-inner" />
+                <div>
+                    <button onclick="sendQuerry()"
+                        class="cursor-pointer h-full w-full rounded-full bg-primary hover:bg-secondary text-white grid place-items-center transition-all">
+                        <i class="fas fa-paper-plane"></i>
+                    </button>
+                    </div>
+                    <div>
+                    <button id="ragButton"
+                        class="cursor-pointer h-full w-full rounded-full bg-primary hover:bg-secondary text-white grid place-items-center transition-all">
+                        <i class="fas fa-file-pdf"></i>
+                    </button>
+                    </div>
+            </div>
+            </div>
+            </div>
     <input id="fileInput" class="opacity-0 absolute top-0 z-[-1]" type="file" accept=".pdf" multiple/>
 
-
-
     <script>
-
-function readPDF(file) {
+                        function readPDF(file) {
             return new Promise(function(resolve, reject) {
                 var reader = new FileReader();
                 reader.onload = function(event) {
@@ -227,6 +334,7 @@ function readPDF(file) {
                 reader.readAsArrayBuffer(file);
             });
         }        
+
         $("#ragButton").off("click").click(triggerFileUpload)
 
         $('#fileInput').on('change', function(event) {
@@ -235,15 +343,13 @@ function readPDF(file) {
                 console.log('Received files:');
                 allContext='';
                 $.each(files, async function(index, file) {
-                        console.log('Processing File: ' + file.name);
-                        allContext += await readPDF(file) 
+                    allContext += await readPDF(file) 
                 });
 
-                $("#ragButton").html("X")
+                $("#ragButto   n").html('<i class="fa s  fa-times"></i>')
                 $("#ragButton").off("click").click(forgetFile)
             } else {
-                
-                $("#ragButton").html('PDF')
+                $("#ragButton").html('<i class="fas fa-file-pdf"></i>')
                 $("#ragButton").off("click").click(triggerFileUpload)
                 console.log('No files selected.');
             }
@@ -252,3 +358,11 @@ function readPDF(file) {
 </body>
 
 </html>
+    </script>
+    </body>
+    
+    </html>
+    </script>
+    </body>
+    
+    </html>
