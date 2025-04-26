@@ -80,65 +80,183 @@
                                                     .replace(/www\.[^\s]+\.[a-z]{2,}/g, 'URL')
                                                     // Remove email addresses
                                                     .replace(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g, 'email address');
-
-                                                const utterance = new SpeechSynthesisUtterance(cleanText);
-
+                                                
+                                                // Process text for better speech quality
+                                                const processedText = improveTextForSpeech(cleanText);
+                                                
+                                                // Split text into natural chunks at punctuation
+                                                const chunks = splitTextIntoChunks(processedText);
+                                                
+                                                // Queue each chunk for speaking with appropriate pauses
+                                                chunks.forEach((chunk, index) => {
+                                                    if (chunk.trim().length === 0) return;
+                                                    
+                                                    const utterance = new SpeechSynthesisUtterance(chunk);
+                                                    
+                                                    // Apply SSML-like modifications for better prosody
+                                                    applyProsodyToUtterance(utterance, chunk);
+                                                    
+                                                    // Only set the end event for the last chunk
+                                                    if (index === chunks.length - 1) {
+                                                        utterance.onend = function () {
+                                                            document.getElementById('stopSpeechBtn').disabled = true;
+                                                            currentUtterance = null;
+                                                        };
+                                                    }
+                                                    
+                                                    // Enable stop button
+                                                    document.getElementById('stopSpeechBtn').disabled = false;
+                                                    
+                                                    // Keep track of current utterance
+                                                    currentUtterance = utterance;
+                                                    
+                                                    // Add a natural pause between chunks
+                                                    setTimeout(() => {
+                                                        synth.speak(utterance);
+                                                    }, index * 250); // Longer pause for more natural speech
+                                                });
+                                            }
+                                            
+                                            // Function to improve text for more natural speech
+                                            function improveTextForSpeech(text) {
+                                                // Replace abbreviations
+                                                let processed = text
+                                                    .replace(/Mr\./g, 'Mister ')
+                                                    .replace(/Mrs\./g, 'Misses ')
+                                                    .replace(/Dr\./g, 'Doctor ')
+                                                    .replace(/Prof\./g, 'Professor ')
+                                                    .replace(/vs\./g, 'versus ')
+                                                    .replace(/etc\./g, 'etcetera ')
+                                                    .replace(/approx\./g, 'approximately ')
+                                                    // Add pauses after punctuation by adding commas
+                                                    .replace(/\.\s+/g, '. , ')
+                                                    .replace(/\!\s+/g, '! , ')
+                                                    .replace(/\?\s+/g, '? , ')
+                                                    // Handle numbers better
+                                                    .replace(/(\d+)°C/g, '$1 degrees Celsius')
+                                                    .replace(/(\d+)°F/g, '$1 degrees Fahrenheit')
+                                                    .replace(/(\d+)km/g, '$1 kilometers')
+                                                    .replace(/(\d+)m/g, '$1 meters')
+                                                    .replace(/(\d+)cm/g, '$1 centimeters');
+                                                    
+                                                return processed;
+                                            }
+                                            
+                                            // Function to split text into natural chunks for better speech flow
+                                            function splitTextIntoChunks(text) {
+                                                // Split at sentences, but keep the punctuation
+                                                let chunks = [];
+                                                
+                                                // First try to split by sentences
+                                                const sentenceRegex = /[^.!?]+[.!?]+/g;
+                                                const sentences = text.match(sentenceRegex);
+                                                
+                                                if (sentences && sentences.length > 0) {
+                                                    // If we have clear sentences, use those
+                                                    chunks = sentences;
+                                                } else {
+                                                    // Otherwise split by commas or similar for long texts
+                                                    const commaRegex = /[^,;:]+[,;:]+/g;
+                                                    const parts = text.match(commaRegex);
+                                                    
+                                                    if (parts && parts.length > 0) {
+                                                        chunks = parts;
+                                                    } else {
+                                                        // If no good splitting points, just use the whole text
+                                                        chunks = [text];
+                                                    }
+                                                }
+                                                
+                                                // Further split very long chunks for better timing
+                                                let finalChunks = [];
+                                                chunks.forEach(chunk => {
+                                                    if (chunk.length > 150) {
+                                                        // Split long chunks at spaces about every 100 characters
+                                                        let words = chunk.split(' ');
+                                                        let currentChunk = '';
+                                                        
+                                                        words.forEach(word => {
+                                                            if (currentChunk.length + word.length > 100) {
+                                                                finalChunks.push(currentChunk);
+                                                                currentChunk = word;
+                                                            } else {
+                                                                currentChunk += ' ' + word;
+                                                            }
+                                                        });
+                                                        
+                                                        if (currentChunk) {
+                                                            finalChunks.push(currentChunk);
+                                                        }
+                                                    } else {
+                                                        finalChunks.push(chunk);
+                                                    }
+                                                });
+                                                
+                                                return finalChunks;
+                                            }
+                                            
+                                            // Apply prosody modifications to make speech more natural
+                                            function applyProsodyToUtterance(utterance, text) {
                                                 // Set voice properties
-                                                utterance.rate = 1.0;
+                                                utterance.rate = 0.9;  // Slightly slower for more natural speaking
                                                 utterance.pitch = 1.0;
                                                 utterance.volume = 1.0;
-
-                                                // Try to find a female voice
+                                                
+                                                // Detect question marks to adjust pitch
+                                                if (text.includes('?')) {
+                                                    utterance.pitch = 1.1; // Slightly higher pitch for questions
+                                                }
+                                                
+                                                // Look for emphasis patterns like *text* or UPPERCASE
+                                                if (/\*[^*]+\*/g.test(text) || /[A-Z]{3,}/g.test(text)) {
+                                                    utterance.volume = 1.2; // Slightly louder for emphasis
+                                                }
+                                                
+                                                // Try to find and select best voice
+                                                selectBestVoice(utterance);
+                                            }
+                                            
+                                            // Select the best available voice
+                                            function selectBestVoice(utterance) {
                                                 let voices = synth.getVoices();
-                                                let femaleVoice = voices.find(voice =>
+                                                
+                                                // Preferred voices in order (many browsers will have at least one of these)
+                                                const preferredVoices = [
+                                                    "Google UK English Female",
+                                                    "Microsoft Zira",
+                                                    "Alex",
+                                                    "Samantha",
+                                                    "Google US English",
+                                                    "Victoria",
+                                                    "Karen"
+                                                ];
+                                                
+                                                // Try to find one of our preferred voices
+                                                for (let preferredName of preferredVoices) {
+                                                    const voice = voices.find(v => v.name.includes(preferredName));
+                                                    if (voice) {
+                                                        utterance.voice = voice;
+                                                        return;
+                                                    }
+                                                }
+                                                
+                                                // If no preferred voice found, try any female voice
+                                                const femaleVoice = voices.find(voice =>
                                                     voice.name.toLowerCase().includes('female') ||
-                                                    voice.name.includes('Samantha') ||
-                                                    voice.name.includes('Victoria') ||
-                                                    voice.name.includes('Karen') ||
-                                                    voice.name.includes('Tessa')
+                                                    voice.name.includes('woman') ||
+                                                    voice.name.includes('girl') ||
+                                                    voice.name.includes('f') && voice.name.includes('us')
                                                 );
-
+                                                
                                                 if (femaleVoice) {
                                                     utterance.voice = femaleVoice;
+                                                    return;
                                                 }
-
-                                                // Enable stop button when speech starts
-                                                document.getElementById('stopSpeechBtn').disabled = false;
-
-                                                // Disable stop button when speech ends
-                                                utterance.onend = function () {
-                                                    document.getElementById('stopSpeechBtn').disabled = true;
-                                                    currentUtterance = null;
-                                                };
-
-                                                currentUtterance = utterance;
-                                                synth.speak(utterance);
-                                            }
-
-                                            // Function to stop speech
-                                            function stopSpeech() {
-                                                if (currentUtterance) {
-                                                    synth.cancel();
-                                                    currentUtterance = null;
-                                                    document.getElementById('stopSpeechBtn').disabled = true;
-                                                }
-                                            }
-
-                                            // Toggle speech function
-                                            function toggleSpeech() {
-                                                speechEnabled = !speechEnabled;
-
-                                                if (!speechEnabled && currentUtterance) {
-                                                    stopSpeech();
-                                                }
-
-                                                const speechIcon = document.getElementById('speechIcon');
-                                                if (speechEnabled) {
-                                                    speechIcon.classList.remove('fa-volume-mute');
-                                                    speechIcon.classList.add('fa-volume-high');
-                                                } else {
-                                                    speechIcon.classList.remove('fa-volume-high');
-                                                    speechIcon.classList.add('fa-volume-mute');
+                                                
+                                                // Last resort: find any voice that seems to be good quality
+                                                const anyGoodVoice = voices.find(voice => !voice.name.includes('Microsoft') || voice.localService === false);
+                                                if (anyGoodVoice) {
+                                                    utterance.voice = anyGoodVoice;
                                                 }
                                             }
 
@@ -256,7 +374,7 @@
                                             window.speechSynthesis.onvoiceschanged = function () {
                                                 console.log("Voices loaded:", synth.getVoices().length);
                                             };
-</script>
+    </script>
     
     <div class="h-full bg-dark grid place-items-center">
         <div class="h-full w-full overflow-hidden grid grid-rows-[auto_1fr_60px] max-w-[1000px]">
@@ -282,32 +400,50 @@
             <div id="chats" class="flex flex-col text-white p-5 overflow-y-scroll">
                 <!-- Chat messages will appear here -->
             </div>
-            <div class="grid grid-cols-[1fr_50px_70px] gap-2 p-2">
+            <div class="grid grid-cols-[1fr_50px_50px_70px] gap-2 p-2">
                 <input onkeydown="keydown()" id="userInput" autofocus placeholder="Ask Naira anything..."
                     class="px-5 pr-12 border-none focus:outline-none h-full w-full bg-[#2f2f2f] text-white rounded-full shadow-inner" />
+                <div>
+                    <button id="micButton" onclick="toggleVoiceRecognition()"
+                        class="cursor-pointer h-full w-full rounded-full bg-primary hover:bg-secondary text-white grid place-items-center transition-all">
+                        <i id="micIcon" class="fas fa-microphone"></i>
+                    </button>
+                </div>
                 <div>
                     <button onclick="sendQuerry()"
                         class="cursor-pointer h-full w-full rounded-full bg-primary hover:bg-secondary text-white grid place-items-center transition-all">
                         <i class="fas fa-paper-plane"></i>
                     </button>
-                    </div>
-                    <div>
+                </div>
+                <div>
                     <button id="ragButton"
                         class="cursor-pointer h-full w-full rounded-full bg-primary hover:bg-secondary text-white grid place-items-center transition-all">
                         <i class="fas fa-file-pdf"></i>
                     </button>
-                    </div>
+                </div>
             </div>
             </div>
             </div>
     <input id="fileInput" class="opacity-0 absolute top-0 z-[-1]" type="file" accept=".pdf" multiple/>
 
     <script>
-                        function readPDF(file) {
+        function readPDF(file) {
             return new Promise(function(resolve, reject) {
                 var reader = new FileReader();
                 reader.onload = function(event) {
                     var typedArray = new Uint8Array(event.target.result);
+                    
+                    // Add a loading notification
+                    $("#chats").append(`<div id="pdfLoading" class="prose chat text-start my-4">
+                        <div class='px-4 py-3 bg-secondary bg-opacity-10 text-white rounded-2xl max-w-[70%] shadow-sm'>
+                            Loading PDF: ${file.name}... <i class="fas fa-spinner fa-spin"></i>
+                        </div>
+                    </div>`);
+                    $("#chats").scrollTop($("#chats").prop('scrollHeight'));
+                    
+                    // Set PDF.js worker
+                    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.14.305/pdf.worker.min.js';
+                    
                     pdfjsLib.getDocument(typedArray).promise.then(function(pdf) {
                         var pagesPromises = [];
                         for (var i = 1; i <= pdf.numPages; i++) {
@@ -320,49 +456,232 @@
                         // Resolve the promise with the concatenated text of all pages
                         Promise.all(pagesPromises).then(function(pagesText) {
                             var fullText = pagesText.join('\n');
+                            // Remove the loading notification
+                            $("#pdfLoading").remove();
+                            // Add success notification
+                            $("#chats").append(`<div class="prose chat text-start my-4">
+                                <div class='px-4 py-3 bg-green-500 bg-opacity-20 text-white rounded-2xl max-w-[70%] shadow-sm'>
+                                    PDF loaded successfully: ${file.name} (${pdf.numPages} pages)
+                                </div>
+                            </div>`);
+                            $("#chats").scrollTop($("#chats").prop('scrollHeight'));
                             resolve(fullText);
                         }).catch(function(error) {
+                            console.error("PDF text extraction error:", error);
+                            // Remove the loading notification and add error message
+                            $("#pdfLoading").remove();
+                            $("#chats").append(`<div class="prose chat text-start my-4">
+                                <div class='px-4 py-3 bg-red-500 bg-opacity-20 text-white rounded-2xl max-w-[70%] shadow-sm'>
+                                    Error extracting text from PDF: ${file.name}
+                                </div>
+                            </div>`);
+                            $("#chats").scrollTop($("#chats").prop('scrollHeight'));
                             reject(error);
                         });
                     }).catch(function(error) {
+                        console.error("PDF loading error:", error);
+                        // Remove the loading notification and add error message
+                        $("#pdfLoading").remove();
+                        $("#chats").append(`<div class="prose chat text-start my-4">
+                            <div class='px-4 py-3 bg-red-500 bg-opacity-20 text-white rounded-2xl max-w-[70%] shadow-sm'>
+                                Error loading PDF: ${file.name}. Make sure it's a valid PDF file.
+                            </div>
+                        </div>`);
+                        $("#chats").scrollTop($("#chats").prop('scrollHeight'));
                         reject(error);
                     });
                 };
                 reader.onerror = function(error) {
+                    console.error("File reading error:", error);
+                    $("#chats").append(`<div class="prose chat text-start my-4">
+                        <div class='px-4 py-3 bg-red-500 bg-opacity-20 text-white rounded-2xl max-w-[70%] shadow-sm'>
+                            Error reading file: ${file.name}
+                        </div>
+                    </div>`);
+                    $("#chats").scrollTop($("#chats").prop('scrollHeight'));
                     reject(error);
                 };
                 reader.readAsArrayBuffer(file);
             });
         }        
 
-        $("#ragButton").off("click").click(triggerFileUpload)
+        $("#ragButton").off("click").click(triggerFileUpload);
 
         $('#fileInput').on('change', function(event) {
             var files = event.target.files;
             if (files.length > 0) {
-                console.log('Received files:');
-                allContext='';
-                $.each(files, async function(index, file) {
-                    allContext += await readPDF(file) 
-                });
-
-                $("#ragButto   n").html('<i class="fa s  fa-times"></i>')
-                $("#ragButton").off("click").click(forgetFile)
+                console.log('Received files:', files.length);
+                allContext = '';
+                
+                // Disable the RAG button during loading
+                $("#ragButton").prop("disabled", true).addClass("opacity-50");
+                
+                // Process each file sequentially with async/await
+                (async function processFiles() {
+                    for (let i = 0; i < files.length; i++) {
+                        try {
+                            let fileText = await readPDF(files[i]);
+                            allContext += fileText + "\n\n";
+                        } catch (error) {
+                            console.error("Error processing file:", error);
+                        }
+                    }
+                    
+                    // Update the RAG button when done
+                    $("#ragButton").html('<i class="fas fa-times"></i>');
+                    $("#ragButton").off("click").click(forgetFile);
+                    $("#ragButton").prop("disabled", false).removeClass("opacity-50");
+                    
+                    // Notify completion
+                    if (allContext.trim().length > 0) {
+                        $("#chats").append(`<div class="prose chat text-start my-4">
+                            <div class='px-4 py-3 bg-secondary bg-opacity-10 text-white rounded-2xl max-w-[70%] shadow-sm'>
+                                All PDFs loaded. You can now ask questions about the content.
+                            </div>
+                        </div>`);
+                        $("#chats").scrollTop($("#chats").prop('scrollHeight'));
+                    }
+                })();
             } else {
-                $("#ragButton").html('<i class="fas fa-file-pdf"></i>')
-                $("#ragButton").off("click").click(triggerFileUpload)
+                $("#ragButton").html('<i class="fas fa-file-pdf"></i>');
+                $("#ragButton").off("click").click(triggerFileUpload);
                 console.log('No files selected.');
+            }
+        });
+    </script>
+    
+    <!-- Voice Recognition Implementation -->
+    <script>
+        // Initialize voice recognition
+        let recognition = null;
+        let isListening = false;
+        
+        // Check if browser supports speech recognition
+        if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+            // Create speech recognition instance
+            recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+            
+            // Configure recognition settings
+            recognition.continuous = false;
+            recognition.interimResults = false;
+            recognition.lang = 'en-US';
+            
+            // Handle recognition results
+            recognition.onresult = function(event) {
+                const voiceCommand = event.results[0][0].transcript;
+                console.log("Voice command detected:", voiceCommand);
+                
+                // Process special commands
+                const processedCommand = processVoiceCommand(voiceCommand);
+                
+                // Add the voice command to the input field
+                $("#userInput").val(processedCommand);
+                
+                // Send the voice command
+                sendQuerry();
+            };
+            
+            // Function to process special voice commands
+            function processVoiceCommand(command) {
+                // Convert to lowercase for easier matching
+                const lowerCommand = command.toLowerCase().trim();
+                
+                // Special command patterns
+                const openPattern = /^open\s+(.+)$/i;
+                const searchPattern = /^search\s+(for)?\s+(.+)$/i;
+                const findPattern = /^find\s+(.+)$/i;
+                const showPattern = /^show\s+(me)?\s+(.+)$/i;
+                
+                // Handle "open" commands
+                if (openPattern.test(lowerCommand)) {
+                    const match = lowerCommand.match(openPattern);
+                    const target = match[1];
+                    return `open ${target}`;
+                }
+                
+                // Handle "search" commands
+                if (searchPattern.test(lowerCommand)) {
+                    const match = lowerCommand.match(searchPattern);
+                    const query = match[2];
+                    return `search for ${query}`;
+                }
+                
+                // Handle "find" commands
+                if (findPattern.test(lowerCommand)) {
+                    const match = lowerCommand.match(findPattern);
+                    const query = match[1];
+                    return `search for ${query}`;
+                }
+                
+                // Handle "show" commands
+                if (showPattern.test(lowerCommand)) {
+                    const match = lowerCommand.match(showPattern);
+                    const query = match[2];
+                    return `show me ${query}`;
+                }
+                
+                // If no special command pattern matched, return the original command
+                return command;
+            }
+            
+            // Handle errors
+            recognition.onerror = function(event) {
+                console.error("Speech recognition error:", event.error);
+                isListening = false;
+                updateMicrophoneButton();
+            };
+            
+            // When recognition ends
+            recognition.onend = function() {
+                console.log("Speech recognition ended");
+                isListening = false;
+                updateMicrophoneButton();
+            };
+        } else {
+            console.warn("Speech recognition not supported in this browser");
+        }
+        
+        // Function to toggle voice recognition
+        function toggleVoiceRecognition() {
+            if (!recognition) {
+                alert("Speech recognition is not supported in your browser.");
+                return;
+            }
+            
+            if (isListening) {
+                recognition.stop();
+                isListening = false;
+            } else {
+                recognition.start();
+                isListening = true;
+            }
+            
+            updateMicrophoneButton();
+        }
+        
+        // Update microphone button appearance
+        function updateMicrophoneButton() {
+            const micIcon = document.getElementById('micIcon');
+            if (isListening) {
+                micIcon.classList.remove('fa-microphone');
+                micIcon.classList.add('fa-microphone-slash');
+                $("#micButton").addClass('bg-red-500').removeClass('bg-primary');
+            } else {
+                micIcon.classList.remove('fa-microphone-slash');
+                micIcon.classList.add('fa-microphone');
+                $("#micButton").removeClass('bg-red-500').addClass('bg-primary');
+            }
+        }
+        
+        // Add keyboard shortcut for voice input (Ctrl+Space)
+        $(document).on('keydown', function(e) {
+            // Check for Ctrl+Space (key code 32 is space)
+            if (e.ctrlKey && e.keyCode === 32) {
+                e.preventDefault(); // Prevent default space behavior
+                toggleVoiceRecognition();
             }
         });
     </script>
 </body>
 
 </html>
-    </script>
-    </body>
-    
-    </html>
-    </script>
-    </body>
-    
-    </html>

@@ -198,7 +198,7 @@ GROQ_TOOLS = [
                 "properties": {
                     "query": {
                         "type": "string",
-                        "description": "The query for generating a response using LLM.",
+                        "description": "The query to generate a response for.",
                     }
                 },
                 "required": ["query"],
@@ -209,7 +209,7 @@ GROQ_TOOLS = [
         "type": "function",
         "function": {
             "name": "send_email",
-            "description": "Sends an email if the prompt specifically mentions sending a mail.",
+            "description": "Sends an email to the specified recipient.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -224,7 +224,7 @@ GROQ_TOOLS = [
                     "body": {
                         "type": "string",
                         "description": "The body content of the email.",
-                    }
+                    },
                 },
                 "required": ["to_address", "subject", "body"],
             },
@@ -234,15 +234,17 @@ GROQ_TOOLS = [
         "type": "function",
         "function": {
             "name": "get_system_info",
-            "description": "Retrieves system information like CPU usage, memory usage, disk space, and GPU utilization or all. and if not specified it will return all.",
+            "description": "Retrieves system information such as CPU usage, memory usage, and disk space.",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "info_type": {
                         "type": "string",
-                        "description": "The type of system information to retrieve. Options: 'cpu', 'memory', 'disk', 'gpu'. Default is 'all'.",
+                        "description": "The type of system information to retrieve (options: cpu, memory, disk, gpu, all).",
+                        "enum": ["cpu", "memory", "disk", "gpu", "all"],
                     }
                 },
+                "required": [],
             },
         },
     },
@@ -250,13 +252,13 @@ GROQ_TOOLS = [
         "type": "function",
         "function": {
             "name": "youtube_search",
-            "description": "Performs a YouTube search and returns the search query.",
+            "description": "Searches YouTube for videos matching the query and opens the search results page.",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "query": {
                         "type": "string",
-                        "description": "The search terms to query on YouTube.",
+                        "description": "The search query for finding YouTube videos.",
                     }
                 },
                 "required": ["query"],
@@ -267,13 +269,13 @@ GROQ_TOOLS = [
         "type": "function",
         "function": {
             "name": "google_search",
-            "description": "Performs a Google search for the provided query and returns the search terms.",
+            "description": "Performs a Google search for the query and opens the search results page.",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "query": {
                         "type": "string",
-                        "description": "The search terms to query on Google.",
+                        "description": "The search query to look up on Google.",
                     }
                 },
                 "required": ["query"],
@@ -284,13 +286,13 @@ GROQ_TOOLS = [
         "type": "function",
         "function": {
             "name": "generate_image",
-            "description": "Generates an image based on a user query.",
+            "description": "Generates an image based on the text description provided.",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "query": {
                         "type": "string",
-                        "description": "The query to generate an image from.",
+                        "description": "Text description of the image to generate.",
                     }
                 },
                 "required": ["query"],
@@ -301,13 +303,13 @@ GROQ_TOOLS = [
         "type": "function",
         "function": {
             "name": "writeCode",
-            "description": "Generates code from user query and saves to drive",
+            "description": "Generates code and file structure based on the user's request.",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "query": {
                         "type": "string",
-                        "description": "Query to generate code",
+                        "description": "Description of what code to generate.",
                     }
                 },
                 "required": ["query"],
@@ -315,43 +317,77 @@ GROQ_TOOLS = [
         },
     },
     {
-    "type": "function",
-    "function": {
-        "name": "open_app",
-        "description": "Opens Spotlight search and launches an application using the given query",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "query": {
-                    "type": "string",
-                    "description": "The name of the application to search for and open using Spotlight.",
-                }
+        "type": "function",
+        "function": {
+            "name": "open_app",
+            "description": "Opens a specified application on the user's computer.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "query": {
+                        "type": "string",
+                        "description": "The name of the application to open.",
+                    }
+                },
+                "required": ["query"],
             },
-            "required": ["query"]
-        }
-    }
+        },
     },
     {
-    "type": "function",
-    "function": {
-        "name": "open_meet_and_send_mail",
-        "description": "Opens a Google Meet using meet.new, copies the Meet link from the URL, and sends an email with the link.",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "subject": {
-                    "type": "string",
-                    "description": "The subject of the email to be sent."
+        "type": "function",
+        "function": {
+            "name": "open_meet_and_send_mail",
+            "description": "Creates a new Google Meet and sends the meeting link via email.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "subject": {
+                        "type": "string",
+                        "description": "The subject line for the email containing the meeting link.",
+                    },
+                    "to_address": {
+                        "type": "string",
+                        "description": "The recipient's email address.",
+                    }
                 },
-                "to_address": {
-                    "type": "string",
-                    "description": "The recipient email address to send the Meet link to.",
-                }
+                "required": ["to_address"],
             },
-            "required": ["subject", "to_address"]
-        }
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "adjust_volume",
+            "description": "Adjusts the system volume to a specified percentage.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "percentage": {
+                        "type": "integer",
+                        "description": "Volume level from 0-100. 0 is muted, 100 is maximum volume.",
+                    }
+                },
+                "required": ["percentage"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "adjust_brightness",
+            "description": "Adjusts the screen brightness to a specified percentage.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "percentage": {
+                        "type": "integer",
+                        "description": "Brightness level from 0-100. 0 is minimum brightness, 100 is maximum brightness.",
+                    }
+                },
+                "required": ["percentage"],
+            },
+        },
     }
-}
 ]
 
 
