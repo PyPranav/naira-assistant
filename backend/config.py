@@ -317,36 +317,36 @@ GROQ_TOOLS = [
         },
     },
     {
-        "type": "function",
-        "function": {
-            "name": "open_app",
+    "type": "function",
+    "function": {
+        "name": "open_app",
             "description": "Opens a specified application on the user's computer.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "query": {
-                        "type": "string",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "query": {
+                    "type": "string",
                         "description": "The name of the application to open.",
-                    }
+                }
                 },
                 "required": ["query"],
             },
         },
     },
     {
-        "type": "function",
-        "function": {
-            "name": "open_meet_and_send_mail",
+    "type": "function",
+    "function": {
+        "name": "open_meet_and_send_mail",
             "description": "Creates a new Google Meet and sends the meeting link via email.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "subject": {
-                        "type": "string",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "subject": {
+                    "type": "string",
                         "description": "The subject line for the email containing the meeting link.",
-                    },
-                    "to_address": {
-                        "type": "string",
+                },
+                "to_address": {
+                    "type": "string",
                         "description": "The recipient's email address.",
                     }
                 },
@@ -365,8 +365,8 @@ GROQ_TOOLS = [
                     "percentage": {
                         "type": "integer",
                         "description": "Volume level from 0-100. 0 is muted, 100 is maximum volume.",
-                    }
-                },
+                }
+            },
                 "required": ["percentage"],
             },
         },
@@ -387,7 +387,7 @@ GROQ_TOOLS = [
                 "required": ["percentage"],
             },
         },
-    }
+}
 ]
 
 

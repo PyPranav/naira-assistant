@@ -80,7 +80,7 @@
                                                     .replace(/www\.[^\s]+\.[a-z]{2,}/g, 'URL')
                                                     // Remove email addresses
                                                     .replace(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g, 'email address');
-                                                
+
                                                 // Process text for better speech quality
                                                 const processedText = improveTextForSpeech(cleanText);
                                                 
@@ -201,7 +201,7 @@
                                                 utterance.rate = 0.9;  // Slightly slower for more natural speaking
                                                 utterance.pitch = 1.0;
                                                 utterance.volume = 1.0;
-                                                
+
                                                 // Detect question marks to adjust pitch
                                                 if (text.includes('?')) {
                                                     utterance.pitch = 1.1; // Slightly higher pitch for questions
@@ -247,12 +247,12 @@
                                                     voice.name.includes('girl') ||
                                                     voice.name.includes('f') && voice.name.includes('us')
                                                 );
-                                                
+
                                                 if (femaleVoice) {
                                                     utterance.voice = femaleVoice;
                                                     return;
                                                 }
-                                                
+
                                                 // Last resort: find any voice that seems to be good quality
                                                 const anyGoodVoice = voices.find(voice => !voice.name.includes('Microsoft') || voice.localService === false);
                                                 if (anyGoodVoice) {
@@ -374,7 +374,54 @@
                                             window.speechSynthesis.onvoiceschanged = function () {
                                                 console.log("Voices loaded:", synth.getVoices().length);
                                             };
-    </script>
+
+                                            // Function to toggle speech on/off
+                                            function toggleSpeech() {
+                                                speechEnabled = !speechEnabled;
+                                                const speechIcon = document.getElementById('speechIcon');
+                                                
+                                                if (speechEnabled) {
+                                                    // Speech is enabled
+                                                    speechIcon.classList.remove('fa-volume-xmark');
+                                                    speechIcon.classList.add('fa-volume-high');
+                                                } else {
+                                                    // Speech is disabled - stop any current speech
+                                                    if (currentUtterance) {
+                                                        synth.cancel();
+                                                        document.getElementById('stopSpeechBtn').disabled = true;
+                                                        currentUtterance = null;
+                                                    }
+                                                    speechIcon.classList.remove('fa-volume-high');
+                                                    speechIcon.classList.add('fa-volume-xmark');
+                                                }
+                                                
+                                                // Save preference to localStorage
+                                                localStorage.setItem('speechEnabled', speechEnabled);
+                                            }
+                                            
+                                            // Function to stop current speech
+                                            function stopSpeech() {
+                                                if (currentUtterance) {
+                                                    synth.cancel();
+                                                    document.getElementById('stopSpeechBtn').disabled = true;
+                                                    currentUtterance = null;
+                                                }
+                                            }
+                                            
+                                            // Check for saved speech preference
+                                            document.addEventListener('DOMContentLoaded', function() {
+                                                const savedSpeechPreference = localStorage.getItem('speechEnabled');
+                                                if (savedSpeechPreference !== null) {
+                                                    speechEnabled = savedSpeechPreference === 'true';
+                                                    // Update icon to match saved preference
+                                                    const speechIcon = document.getElementById('speechIcon');
+                                                    if (!speechEnabled) {
+                                                        speechIcon.classList.remove('fa-volume-high');
+                                                        speechIcon.classList.add('fa-volume-xmark');
+                                                    }
+                                                }
+                                            });
+</script>
     
     <div class="h-full bg-dark grid place-items-center">
         <div class="h-full w-full overflow-hidden grid grid-rows-[auto_1fr_60px] max-w-[1000px]">
@@ -414,20 +461,20 @@
                         class="cursor-pointer h-full w-full rounded-full bg-primary hover:bg-secondary text-white grid place-items-center transition-all">
                         <i class="fas fa-paper-plane"></i>
                     </button>
-                </div>
-                <div>
+                    </div>
+                    <div>
                     <button id="ragButton"
                         class="cursor-pointer h-full w-full rounded-full bg-primary hover:bg-secondary text-white grid place-items-center transition-all">
                         <i class="fas fa-file-pdf"></i>
                     </button>
-                </div>
+                    </div>
             </div>
             </div>
             </div>
     <input id="fileInput" class="opacity-0 absolute top-0 z-[-1]" type="file" accept=".pdf" multiple/>
 
     <script>
-        function readPDF(file) {
+                        function readPDF(file) {
             return new Promise(function(resolve, reject) {
                 var reader = new FileReader();
                 reader.onload = function(event) {
@@ -682,6 +729,6 @@
             }
         });
     </script>
-</body>
-
-</html>
+    </body>
+    
+    </html>

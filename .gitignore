@@ -45,3 +45,5 @@ yarn-error.log*
 /frontend/next-env.d.ts
 /venv
 .env
+
+
